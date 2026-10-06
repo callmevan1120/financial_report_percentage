@@ -26,15 +26,20 @@ bench --site <site> install-app financial_report_percentage
 The percentage is based on the `total` column of the report; for reports without a
 total column (e.g. yearly or accumulated values) the last period column is used.
 
-The denominator (100%) is:
+The denominator (100%) is the **gross income**:
 
-1. the classic income section total (sum of the top level income rows), when no
-   Report Template is selected, or
-2. the first revenue section (`indent = 0`, account data row) when a
-   **Report Template** is used - consistent with the margin calculations inside
-   the standard templates.
+1. classic reports: the sum of the income accounts (leaves) of the income
+   section, leaving out cost accounts (`Cost of Goods Sold`,
+   `Expenses Included In Valuation`, `Stock Adjustment`, `Depreciation`,
+   `Expense Account`, ...). Charts of accounts that nest the cost of goods sold
+   below the income root make ERPNext's own total income a *net* figure, which
+   would produce percentages like `142,88%` for sales - the gross income is used
+   instead, so the top revenue account shows `100%` and the cost accounts show
+   their share of revenue (e.g. `-30,01%`).
+2. report templates: the first revenue section (`indent = 0`, account data row)
+   - consistent with the margin calculations inside the standard templates.
 
-If the denominator is missing or zero the column is not added at all.
+If the gross income is missing or zero the column is not added at all.
 
 ## Notes
 

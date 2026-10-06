@@ -12,6 +12,20 @@ SUPPORTED_REPORTS = ("Profit and Loss Statement",)
 PERCENTAGE_FIELDNAME = "percentage"
 PERCENTAGE_LABEL = "%"
 
+# Account types that must not count towards the gross income (100%), even when
+# the accounts sit below the income root (e.g. cost of goods sold accounts).
+COST_ACCOUNT_TYPES = frozenset(
+	{
+		"Cost of Goods Sold",
+		"Expenses Included In Valuation",
+		"Expenses Included In Asset Valuation",
+		"Stock Adjustment",
+		"Stock Received But Not Billed",
+		"Depreciation",
+		"Expense Account",
+	}
+)
+
 
 def is_enabled(filters) -> bool:
 	"""`show_percentage` defaults to 1 so the column is shown unless explicitly unchecked."""
@@ -68,16 +82,40 @@ def get_income_total(data, value_field) -> float | None:
 				return flt(row.get(value_field))
 		return None
 
-	# classic report: sum the top level rows of the income section, which ends
-	# where the first total row (appended by `add_total_row`) starts
-	income_total = 0.0
+	# classic report: the income section ends where the first total row
+	# (appended by `add_total_row`) starts
+	income_rows = []
 	for row in rows:
 		if is_classic_total_row(row):
-			return income_total or None
-		if not row.get("parent_account"):
-			income_total += flt(row.get(value_field))
+			break
+		income_rows.append(row)
 
-	return None
+	return get_gross_income_total(income_rows, value_field)
+
+
+def is_cost_account(row) -> bool:
+	return (row.get("account_type") or "") in COST_ACCOUNT_TYPES
+
+
+def get_gross_income_total(income_rows, value_field) -> float | None:
+	"""Sum of the income accounts (leaves), leaving cost accounts out.
+
+	Charts of accounts that nest the cost of goods sold below the income root
+	make ERPNext's own total income a net figure (revenue minus costs), so the
+	percentage has to be based on the gross income instead.
+	"""
+	found_leaf = False
+	income_total = 0.0
+
+	for row in income_rows:
+		if row.get("is_group") or row.get("is_blank_line"):
+			continue
+		found_leaf = True
+		if is_cost_account(row):
+			continue
+		income_total += flt(row.get(value_field))
+
+	return income_total if found_leaf else None
 
 
 def add_percentage_column(response: dict) -> dict:
