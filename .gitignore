@@ -1,0 +1,6 @@
+*.pyc
+__pycache__/
+*.egg-info/
+*.log
+.DS_Store
+node_modules/
